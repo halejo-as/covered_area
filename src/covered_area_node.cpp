@@ -8,7 +8,8 @@
 
 class Covered_Area{
   public:
-    Covered_Area(bool r_area){
+    Covered_Area(bool r_area)
+    {
       ROS_INFO("Initialize node covered_area");
       sub = n.subscribe("/cmd_vel",100,&Covered_Area::movementCallback,this);
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
@@ -17,7 +18,8 @@ class Covered_Area{
       redundant_area = r_area;
     }
 
-    bool setConvexPolygonVisited(const std::vector<geometry_msgs::Point>& polygon){
+    bool setConvexPolygonVisited(const std::vector<geometry_msgs::Point>& polygon)
+    {
       // we assume the polygon is given in the global_frame... we need to transform it to map coordinates
       std::vector<costmap_2d::MapLocation> map_polygon;
       for (unsigned int i = 0; i < polygon.size(); ++i)
@@ -62,7 +64,8 @@ class Covered_Area{
     }
     
     //void footprintCallback(geometry_msgs::PolygonStamped footprint){
-    void movementCallback(geometry_msgs::Twist vel){
+    void movementCallback(geometry_msgs::Twist vel)
+    {
       geometry_msgs::PolygonStamped footprint = *ros::topic::waitForMessage<geometry_msgs::PolygonStamped>("/move_base/global_costmap/footprint");
       //covered_costmap.setConvexPolygonCost(costmap_2d::toPointVector(footprint.polygon),254);
       setConvexPolygonVisited(costmap_2d::toPointVector(footprint.polygon));
