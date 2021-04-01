@@ -11,11 +11,11 @@ class Covered_Area{
     Covered_Area(ros::NodeHandle *nh, bool r_area = true ):
       n(*nh),redundant_area(r_area), area(0)
     {
-      ROS_INFO("Create class Covered_Area in node %s",n.getNamespace().c_str());
-      sub = n.subscribe("/cmd_vel",100,&Covered_Area::movementCallback,this);
+      ROS_INFO("Create Class Covered_Area in node %s",n.getNamespace().c_str());
+      sub = n.subscribe("/cmd_vel",10,&Covered_Area::movementCallback,this);
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
       covered_costmap = costmap_2d::Costmap2D(map.width, map.height, map.resolution, map.origin.position.x, map.origin.position.y);
-      n.param("redundant_area",redundant_area);
+      n.setParam("redundant_area",redundant_area);
     }
 
     bool setConvexPolygonVisited(const std::vector<geometry_msgs::Point>& polygon)
@@ -37,6 +37,7 @@ class Covered_Area{
       // get the cells that fill the polygon
       covered_costmap.convexFillCells(map_polygon, polygon_cells);
 
+      n.param("redundant_area",redundant_area,true);
       // set the cost of those cells
       for (unsigned int i = 0; i < polygon_cells.size(); ++i)
       {
