@@ -1,21 +1,21 @@
-#include "ros/ros.h"
-#include "costmap_2d/costmap_2d.h"
-#include "costmap_2d/costmap_2d_publisher.h"
-#include "costmap_2d/footprint.h"
-#include "nav_msgs/MapMetaData.h"
-#include "geometry_msgs/PolygonStamped.h"
-#include "geometry_msgs/Twist.h"
+#include <ros/ros.h>
+#include <costmap_2d/costmap_2d.h>
+#include <costmap_2d/costmap_2d_publisher.h>
+#include <costmap_2d/footprint.h>
+#include <nav_msgs/MapMetaData.h>
+#include <geometry_msgs/PolygonStamped.h>
+#include <geometry_msgs/Twist.h>
 
 class Covered_Area{
   public:
-    Covered_Area(bool r_area)
+    Covered_Area(ros::NodeHandle *nh, bool r_area = true ):
+      n(*nh),redundant_area(r_area), area(0)
     {
-      ROS_INFO("Initialize node covered_area");
+      ROS_INFO("Create class Covered_Area in node %s",n.getNamespace().c_str());
       sub = n.subscribe("/cmd_vel",100,&Covered_Area::movementCallback,this);
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
       covered_costmap = costmap_2d::Costmap2D(map.width, map.height, map.resolution, map.origin.position.x, map.origin.position.y);
-      area = 0;
-      redundant_area = r_area;
+      n.param("redundant_area",redundant_area);
     }
 
     bool setConvexPolygonVisited(const std::vector<geometry_msgs::Point>& polygon)
@@ -80,13 +80,16 @@ class Covered_Area{
     std::vector<unsigned int> footprint_indx;
 };
 
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
   ros::init(argc, argv, "covered_area");
-  Covered_Area cv(true);
+  ros::NodeHandle nh("~");
+  ROS_INFO("Start node %s",nh.getNamespace().c_str());
+  Covered_Area cv(&nh);
   ros::AsyncSpinner spinner(0);
   spinner.start();
   ros::Rate loop_rate(10);
-  costmap_2d::Costmap2DPublisher pub = costmap_2d::Costmap2DPublisher(&cv.n,&cv.covered_costmap,"map","/covered_costmap",true);
+  costmap_2d::Costmap2DPublisher pub = costmap_2d::Costmap2DPublisher(&nh,&cv.covered_costmap,"map","covered_costmap",true);
   while(ros::ok()){
     pub.publishCostmap();
     loop_rate.sleep();
