@@ -5,6 +5,7 @@
 #include <nav_msgs/MapMetaData.h>
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/Twist.h>
+#include "covered_area/Reset_Area.h"
 
 class Covered_Area{
   public:
@@ -13,6 +14,7 @@ class Covered_Area{
     {
       ROS_INFO("Create Class Covered_Area in node %s",n.getNamespace().c_str());
       sub = n.subscribe("/cmd_vel",10,&Covered_Area::movementCallback,this);
+      srv = n.advertiseService("Reset_Area",&Covered_Area::ResetArea,this);
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
       covered_costmap = costmap_2d::Costmap2D(map.width, map.height, map.resolution, map.origin.position.x, map.origin.position.y);
       n.setParam("redundant_area",redundant_area);
@@ -72,8 +74,18 @@ class Covered_Area{
       setConvexPolygonVisited(costmap_2d::toPointVector(footprint.polygon));
       ROS_INFO("area %.4f\n",area*covered_costmap.getResolution()*covered_costmap.getResolution());
     }
+    bool ResetArea(covered_area::Reset_Area::Request &req, covered_area::Reset_Area::Response &res){
+      ROS_INFO("Reset Area ...");
+      area = 0;
+      nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
+      covered_costmap = costmap_2d::Costmap2D(map.width, map.height, map.resolution, map.origin.position.x, map.origin.position.y);
+      res.success = true;
+      return true;
+    }
+
     ros::NodeHandle n;
     ros::Subscriber sub;
+    ros::ServiceServer srv;
     costmap_2d::Costmap2D covered_costmap;
     int area;
     bool redundant_area;
