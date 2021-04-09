@@ -19,3 +19,5 @@ The area is calculated taking into account the map resolution.
 ``` rosparam set /covered_area/redundant_area false ```  
 Set to false this parameter to compute ONLY the new area  
 
+# VIDEO
+https://youtu.be/xBXFLSIzrRs
