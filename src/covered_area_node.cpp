@@ -9,20 +9,25 @@
 
 class Covered_Area{
   public:
+    /* Construction of Covered Area class
+     * @param node handler
+     * @param r_area True if you wish to add to the calculation the area already
+     *               visited or false to compute only new area visited
+     */
     Covered_Area(ros::NodeHandle *nh, bool r_area = true ):
       n(*nh),redundant_area(r_area), area(0)
     {
-      ROS_INFO("Create Class Covered_Area in node %s",n.getNamespace().c_str());
-      sub = n.subscribe("/cmd_vel",10,&Covered_Area::movementCallback,this);
+      sub = n.subscribe("/cmd_vel",5,&Covered_Area::movementCallback,this);
       srv = n.advertiseService("Reset_Area",&Covered_Area::ResetArea,this);
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
       covered_costmap = costmap_2d::Costmap2D(map.width, map.height, map.resolution, map.origin.position.x, map.origin.position.y);
+      map_res = map.resolution;
       n.setParam("redundant_area",redundant_area);
     }
-
+    
+    /* Adaptation for the function used in the move base library*/
     bool setConvexPolygonVisited(const std::vector<geometry_msgs::Point>& polygon)
     {
-      // we assume the polygon is given in the global_frame... we need to transform it to map coordinates
       std::vector<costmap_2d::MapLocation> map_polygon;
       for (unsigned int i = 0; i < polygon.size(); ++i)
       {
@@ -40,7 +45,7 @@ class Covered_Area{
       covered_costmap.convexFillCells(map_polygon, polygon_cells);
 
       n.param("redundant_area",redundant_area,true);
-      // set the cost of those cells
+      // set the cost of the cells covered for the footprint
       for (unsigned int i = 0; i < polygon_cells.size(); ++i)
       {
         unsigned int index = covered_costmap.getIndex(polygon_cells[i].x, polygon_cells[i].y);
@@ -66,15 +71,17 @@ class Covered_Area{
       return true;
     }
     
-    //void footprintCallback(geometry_msgs::PolygonStamped footprint){
+    // Callback when the robot is moving show the value of the area covered
     void movementCallback(geometry_msgs::Twist vel)
     {
       geometry_msgs::PolygonStamped footprint = *ros::topic::waitForMessage<geometry_msgs::PolygonStamped>("/move_base/global_costmap/footprint");
-      //covered_costmap.setConvexPolygonCost(costmap_2d::toPointVector(footprint.polygon),254);
       setConvexPolygonVisited(costmap_2d::toPointVector(footprint.polygon));
-      ROS_INFO("area %.4f\n",area*covered_costmap.getResolution()*covered_costmap.getResolution());
+      ROS_INFO("area %.4f m^2\n",area*map_res*map_res);
     }
-    bool ResetArea(covered_area::Reset_Area::Request &req, covered_area::Reset_Area::Response &res){
+
+    // ROS Service to reset all the variables and start again the area calculation
+    bool ResetArea(covered_area::Reset_Area::Request &req, covered_area::Reset_Area::Response &res)
+    {
       ROS_INFO("Reset Area ...");
       area = 0;
       nav_msgs::MapMetaData map = *ros::topic::waitForMessage<nav_msgs::MapMetaData>("/map_metadata");
@@ -87,10 +94,11 @@ class Covered_Area{
     ros::Subscriber sub;
     ros::ServiceServer srv;
     costmap_2d::Costmap2D covered_costmap;
+    float map_res;
     int area;
     bool redundant_area;
-    std::vector<unsigned int> last_footprint_indx;
-    std::vector<unsigned int> footprint_indx;
+    std::vector<int> last_footprint_indx;
+    std::vector<int> footprint_indx;
 };
 
 int main(int argc, char **argv)
@@ -99,9 +107,10 @@ int main(int argc, char **argv)
   ros::NodeHandle nh("~");
   ROS_INFO("Start node %s",nh.getNamespace().c_str());
   Covered_Area cv(&nh);
-  ros::AsyncSpinner spinner(0);
+  ros::AsyncSpinner spinner(0); // Helps to a right visualisation in RViz
   spinner.start();
   ros::Rate loop_rate(10);
+  // Publish the cotmap to show the area covered
   costmap_2d::Costmap2DPublisher pub = costmap_2d::Costmap2DPublisher(&nh,&cv.covered_costmap,"map","covered_costmap",true);
   while(ros::ok()){
     pub.publishCostmap();
